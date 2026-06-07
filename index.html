@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MA Tax CRM</title>
+<script src="config.js"></script>
+<style>
+  :root{
+    --ink:#1b2330; --muted:#6b7686; --line:#e6e9ef; --bg:#f4f6fa; --card:#fff;
+    --brand:#16508c; --brand2:#1f6fc0; --green:#1f9d57; --amber:#e0a020;
+    --red:#d2433a; --slate:#5a6b80; --violet:#7a52c4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:linear-gradient(120deg,#103d6b,#1f6fc0);color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  header .brand{display:flex;align-items:center;gap:12px}
+  header .logo{width:38px;height:38px;border-radius:9px;background:#fff;color:#16508c;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;letter-spacing:-.5px}
+  header h1{font-size:18px;font-weight:700;line-height:1.1}
+  header p{font-size:12px;opacity:.85}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{font-family:inherit;font-size:13px;border:none;border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600;transition:.15s}
+  .btn-ghost{background:rgba(255,255,255,.14);color:#fff}
+  .btn-ghost:hover{background:rgba(255,255,255,.25)}
+  .sess{display:flex;align-items:center;gap:8px;font-size:12px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#9fb3c8}
+  .dot.on{background:#5be38b;box-shadow:0 0 0 3px rgba(91,227,139,.25)}
+  .wrap{max-width:1200px;margin:0 auto;padding:20px}
+  .banner{background:#fff7e6;border:1px solid #f0d79a;color:#8a6300;border-radius:10px;padding:11px 14px;margin-bottom:14px;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .banner.show{display:flex}
+  .banner button{background:var(--amber);color:#fff}
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .stat .n{font-size:24px;font-weight:800;letter-spacing:-.5px}
+  .stat .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+  .stat.green .n{color:var(--green)} .stat.brand .n{color:var(--brand2)} .stat.violet .n{color:var(--violet)}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .toolbar input[type=search]{flex:1;min-width:180px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff}
+  select{padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--ink)}
+  .btn-add{background:var(--brand);color:#fff} .btn-add:hover{background:#103d6b}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--line);background:#fafbfc}
+  td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr.row:hover{background:#f7faff;cursor:pointer}
+  .name{font-weight:700}
+  .sub{font-size:12px;color:var(--muted)}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700}
+  .b-lead{background:#eef3f9;color:#43536b}
+  .b-activo{background:#e6f0ff;color:#1f6fc0}
+  .b-cotizado{background:#fff3da;color:#b9810f}
+  .b-cerrado{background:#e3f6ea;color:#1f9d57}
+  .b-perdido{background:#fbe7e5;color:#c0392b}
+  .b-pausa{background:#efeaf8;color:#7a52c4}
+  .money{font-weight:700;white-space:nowrap}
+  .empty{padding:50px;text-align:center;color:var(--muted)}
+  .overlay{position:fixed;inset:0;background:rgba(17,24,39,.5);display:none;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto;z-index:50}
+  .overlay.open{display:flex}
+  .modal{background:#fff;border-radius:14px;width:560px;max-width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal h2{font-size:17px;margin-bottom:4px}
+  .modal .hint{font-size:12px;color:var(--muted);margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:2px}
+  .field.full{grid-column:1/3}
+  label{font-size:12px;font-weight:600;color:var(--slate)}
+  input,textarea{font-family:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff;color:var(--ink)}
+  textarea{resize:vertical;min-height:64px}
+  .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+  .modal-actions .right{display:flex;gap:8px}
+  .btn-save{background:var(--brand);color:#fff} .btn-save:hover{background:#103d6b}
+  .btn-cancel{background:#eef1f5;color:#43536b}
+  .btn-del{background:#fff;color:var(--red);border:1px solid #f0c8c4}
+  .btn-del:hover{background:#fbe7e5}
+  /* auth */
+  .auth{position:fixed;inset:0;background:#eef2f8;display:none;align-items:center;justify-content:center;padding:20px;z-index:80}
+  .auth.open{display:flex}
+  .authcard{background:#fff;border-radius:16px;width:380px;max-width:100%;padding:26px;box-shadow:0 20px 60px rgba(16,61,107,.18)}
+  .authcard .logo{width:46px;height:46px;border-radius:11px;background:#16508c;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:14px}
+  .authcard h2{font-size:19px} .authcard .sub{font-size:13px;color:var(--muted);margin:2px 0 18px}
+  .authcard .field{margin-bottom:12px}
+  .authcard .btn-go{background:var(--brand);color:#fff;width:100%;padding:11px;margin-top:4px}
+  .authcard .alt{font-size:12.5px;color:var(--brand2);background:none;padding:8px 0 0;cursor:pointer;display:inline-block}
+  .msg{font-size:12.5px;margin-top:10px;padding:9px 11px;border-radius:8px;display:none}
+  .msg.err{display:block;background:#fbe7e5;color:#c0392b}
+  .msg.ok{display:block;background:#e3f6ea;color:#1f7a45}
+  footer{max-width:1200px;margin:0 auto;padding:8px 20px 30px;font-size:11.5px;color:var(--muted)}
+  @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.hide-sm{display:none}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">MA</div>
+    <div><h1>MA Tax CRM</h1><p>Clientes · Leads · Pipeline — EZBooks &amp; Apps</p></div>
+  </div>
+  <div class="actions">
+    <div class="sess" id="sess"><span class="dot" id="dot"></span><span id="sessTxt">Local</span></div>
+    <button class="btn-ghost" id="authBtn" onclick="openAuth()">☁︎ Conectar</button>
+    <button class="btn-ghost" id="outBtn" onclick="signOut()" style="display:none">Salir</button>
+    <button class="btn-ghost" onclick="exportJSON()">⬇︎ Backup</button>
+    <button class="btn-ghost" onclick="exportCSV()">CSV</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="banner" id="migBanner">
+    <span>☁️ Tienes <b id="migN">0</b> clientes locales. ¿Subirlos a la nube pa' verlos desde cualquier sitio?</span>
+    <button onclick="migrate()">Subir a la nube</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="🔍 Buscar por nombre, teléfono, servicio…" oninput="render()">
+    <select id="filtro" onchange="render()">
+      <option value="">Todos los estados</option>
+      <option value="lead">Lead</option><option value="activo">Activo</option>
+      <option value="cotizado">Cotizado</option><option value="cerrado">Cerrado ✅</option>
+      <option value="perdido">Perdido ❌</option><option value="pausa">Pausa ⏸️</option>
+    </select>
+    <button class="btn-add" onclick="openModal()">+ Nuevo cliente</button>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>Cliente</th><th>Estado</th><th class="hide-sm">Servicio</th>
+      <th>Valor</th><th class="hide-sm">Próximo paso</th><th class="hide-sm">Últ. contacto</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<footer id="foot"></footer>
+
+<!-- modal cliente -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="mTitle">Nuevo cliente</h2>
+    <div class="hint" id="mHint"></div>
+    <input type="hidden" id="f_id">
+    <div class="grid">
+      <div class="field"><label>Nombre *</label><input id="f_nombre" placeholder="Nombre o negocio"></div>
+      <div class="field"><label>Teléfono</label><input id="f_tel" placeholder="787-000-0000"></div>
+      <div class="field"><label>Email</label><input id="f_email" placeholder="correo@ejemplo.com"></div>
+      <div class="field"><label>Servicio de interés</label><input id="f_servicio" placeholder="Iguala mensual, planilla, app…"></div>
+      <div class="field"><label>Estado</label>
+        <select id="f_estado">
+          <option value="lead">Lead</option><option value="activo">Activo</option>
+          <option value="cotizado">Cotizado</option><option value="cerrado">Cerrado ✅</option>
+          <option value="perdido">Perdido ❌</option><option value="pausa">Pausa ⏸️</option>
+        </select>
+      </div>
+      <div class="field"><label>Valor ($)</label><input id="f_valor" type="number" min="0" step="any" placeholder="450"></div>
+      <div class="field"><label>Tipo de valor</label>
+        <select id="f_tipo"><option value="mensual">Mensual (MRR)</option><option value="unico">Único</option></select>
+      </div>
+      <div class="field"><label>Fecha próx. seguimiento</label><input id="f_proxfecha" type="date"></div>
+      <div class="field full"><label>Próximo paso</label><input id="f_paso" placeholder="Llamada de clasificación, enviar propuesta…"></div>
+      <div class="field full"><label>Notas</label><textarea id="f_notas" placeholder="Contexto, qué necesita, objeciones, el 'click' que cerró…"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-del" id="delBtn" onclick="delClient()" style="display:none">Eliminar</button>
+      <div class="right">
+        <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+        <button class="btn-save" id="saveBtn" onclick="saveClient()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- login -->
+<div class="auth" id="auth">
+  <div class="authcard">
+    <div class="logo">MA</div>
+    <h2 id="aTitle">Entrar al CRM</h2>
+    <div class="sub" id="aSub">Usa el mismo correo y clave de Mayor / EZBooks.</div>
+    <div class="field"><label>Email</label><input id="a_email" type="email" placeholder="tu@correo.com" autocomplete="email"></div>
+    <div class="field"><label>Contraseña</label><input id="a_pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn-go" id="aGo" onclick="doAuth()">Entrar</button>
+    <div class="msg" id="aMsg"></div>
+    <span class="alt" id="aSwitch" onclick="toggleAuthMode()">¿No tienes cuenta? Crear una</span>
+    <span class="alt" onclick="closeAuth()" style="float:right;color:var(--muted)">Seguir local</span>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
+const KEY='matax_crm_v1';
+const LABELS={lead:'Lead',activo:'Activo',cotizado:'Cotizado',cerrado:'Cerrado',perdido:'Perdido',pausa:'Pausa'};
+const CFG=window.MAYOR_CONFIG||{};
+const hasCloud = CFG.SUPABASE_URL && !CFG.SUPABASE_URL.includes('YOUR-PROJECT');
+const supabase = hasCloud ? createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+
+let data = loadLocal();
+let mode = 'local';        // 'local' | 'cloud'
+let session = null;
+let authMode = 'signIn';   // 'signIn' | 'signUp'
+
+/* ---------- storage ---------- */
+function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r) return JSON.parse(r);}catch(e){} return seed(); }
+function cacheLocal(){ localStorage.setItem(KEY, JSON.stringify(data)); }
+function uid(){return 'c'+Math.random().toString(36).slice(2,9);}
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function seed(){
+  return [
+    {id:uid(),nombre:'Lead WhatsApp (561)',tel:'+1 561-639-3979',email:'',servicio:'Nómina / clasificación contratistas',estado:'activo',valor:0,tipo:'mensual',paso:'Llamada de clasificación esta semana',proxfecha:'',notas:'Negocio mudándose a PR. Le descuentan 10% y debe pagar comisiones a vendedores. No ha pagado a nadie aún.',ultima:'2026-06-07'},
+    {id:uid(),nombre:'Lead (939)',tel:'939-231-4678',email:'',servicio:'',estado:'lead',valor:0,tipo:'mensual',paso:'Calificar caso',proxfecha:'',notas:'',ultima:''}
+  ];
+}
+
+/* ---------- cloud ---------- */
+const COLS=['nombre','tel','email','servicio','estado','valor','tipo','paso','proxfecha','notas','ultima'];
+function payload(){
+  const o={};
+  COLS.forEach(c=>{ let v=document.getElementById('f_'+c)?.value; o[c]=v; });
+  o.valor=Number(document.getElementById('f_valor').value)||0;
+  o.proxfecha=document.getElementById('f_proxfecha').value||null;
+  o.ultima=today();
+  return o;
+}
+async function cloudFetch(){
+  const {data:rows,error}=await supabase.from('crm_leads').select('*').order('updated_at',{ascending:false});
+  if(error){ flashAuth(error.message,'err'); return false; }
+  data=rows.map(r=>({...r, proxfecha:r.proxfecha||'', ultima:r.ultima||''}));
+  cacheLocal(); return true;
+}
+
+/* ---------- auth ---------- */
+window.openAuth=()=>{document.getElementById('auth').classList.add('open');};
+window.closeAuth=()=>{document.getElementById('auth').classList.remove('open');};
+window.toggleAuthMode=()=>{
+  authMode = authMode==='signIn'?'signUp':'signIn';
+  document.getElementById('aTitle').textContent = authMode==='signIn'?'Entrar al CRM':'Crear cuenta';
+  document.getElementById('aGo').textContent = authMode==='signIn'?'Entrar':'Crear cuenta';
+  document.getElementById('aSwitch').textContent = authMode==='signIn'?'¿No tienes cuenta? Crear una':'¿Ya tienes cuenta? Entrar';
+  document.getElementById('a_pass').setAttribute('autocomplete', authMode==='signIn'?'current-password':'new-password');
+};
+function flashAuth(t,kind){const m=document.getElementById('aMsg');m.textContent=t;m.className='msg '+kind;}
+window.doAuth=async()=>{
+  if(!supabase){flashAuth('No hay config de Supabase (config.js).','err');return;}
+  const email=document.getElementById('a_email').value.trim();
+  const pass=document.getElementById('a_pass').value;
+  if(!email||!pass){flashAuth('Pon tu email y contraseña.','err');return;}
+  document.getElementById('aGo').textContent='…';
+  try{
+    if(authMode==='signIn'){
+      const {error}=await supabase.auth.signInWithPassword({email,password:pass});
+      if(error) throw error;
+    }else{
+      if(pass.length<8) throw new Error('La clave debe tener al menos 8 caracteres.');
+      const {data:d,error}=await supabase.auth.signUp({email,password:pass});
+      if(error) throw error;
+      if(!d.session){ flashAuth('Revisa tu correo para confirmar la cuenta, luego entra.','ok'); document.getElementById('aGo').textContent='Crear cuenta'; return; }
+    }
+  }catch(e){ flashAuth(e.message||'Error de autenticación','err'); document.getElementById('aGo').textContent= authMode==='signIn'?'Entrar':'Crear cuenta'; }
+};
+window.signOut=async()=>{ if(supabase) await supabase.auth.signOut(); };
+
+async function onSession(s){
+  session=s;
+  if(s){
+    mode='cloud'; closeAuth();
+    document.getElementById('sessTxt').textContent=s.user.email;
+    document.getElementById('dot').classList.add('on');
+    document.getElementById('authBtn').style.display='none';
+    document.getElementById('outBtn').style.display='inline-block';
+    const localBackup=loadLocal().filter(x=>String(x.id).startsWith('c'));
+    const ok=await cloudFetch();
+    if(ok){ render(); maybeOfferMigrate(localBackup); }
+  }else{
+    mode='local';
+    document.getElementById('sessTxt').textContent='Local';
+    document.getElementById('dot').classList.remove('on');
+    document.getElementById('authBtn').style.display='inline-block';
+    document.getElementById('outBtn').style.display='none';
+    document.getElementById('migBanner').classList.remove('show');
+    data=loadLocal(); render();
+  }
+}
+
+/* ---------- migrate local -> cloud ---------- */
+let pendingMigrate=[];
+function maybeOfferMigrate(localRecs){
+  if(mode==='cloud' && data.length===0 && localRecs.length){
+    pendingMigrate=localRecs;
+    document.getElementById('migN').textContent=localRecs.length;
+    document.getElementById('migBanner').classList.add('show');
+  }
+}
+window.migrate=async()=>{
+  if(!pendingMigrate.length) return;
+  const rows=pendingMigrate.map(({id,...r})=>({...r, proxfecha:r.proxfecha||null, ultima:r.ultima||null}));
+  const {error}=await supabase.from('crm_leads').insert(rows);
+  document.getElementById('migBanner').classList.remove('show');
+  if(error){alert('No se pudo subir: '+error.message);return;}
+  await cloudFetch(); render();
+};
+
+/* ---------- ui helpers ---------- */
+function money(v,tipo){if(!v)return '<span class="sub">—</span>';return '<span class="money">$'+Number(v).toLocaleString()+(tipo==='mensual'?'/mes':'')+'</span>';}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function stats(){
+  const c=k=>data.filter(x=>x.estado===k).length;
+  const mrr=data.filter(x=>x.estado==='cerrado'&&x.tipo==='mensual').reduce((s,x)=>s+Number(x.valor||0),0);
+  const pipe=data.filter(x=>['lead','activo','cotizado'].includes(x.estado)).reduce((s,x)=>s+Number(x.valor||0),0);
+  const cards=[['',data.length,'Total'],['brand',c('lead')+c('activo')+c('cotizado'),'En proceso'],
+    ['green',c('cerrado'),'Cerrados'],['green','$'+mrr.toLocaleString(),'MRR (mensual)'],['violet','$'+pipe.toLocaleString(),'Pipeline']];
+  document.getElementById('stats').innerHTML=cards.map(([cl,n,l])=>`<div class="stat ${cl}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+}
+window.render=function(){
+  stats();
+  const q=document.getElementById('q').value.toLowerCase();
+  const f=document.getElementById('filtro').value;
+  let rows=data.filter(x=>{
+    const hay=((x.nombre||'')+' '+(x.tel||'')+' '+(x.email||'')+' '+(x.servicio||'')+' '+(x.notas||'')).toLowerCase();
+    return (!f||x.estado===f) && (!q||hay.includes(q));
+  });
+  const order={activo:0,cotizado:1,lead:2,pausa:3,cerrado:4,perdido:5};
+  rows.sort((a,b)=>(order[a.estado]-order[b.estado])||((a.nombre||'').localeCompare(b.nombre||'')));
+  const tb=document.getElementById('rows');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="6" class="empty">Sin clientes. Dale a “+ Nuevo cliente”.</td></tr>';}
+  else tb.innerHTML=rows.map(x=>`<tr class="row" onclick="openModal('${x.id}')">
+    <td><div class="name">${esc(x.nombre)||'—'}</div><div class="sub">${esc(x.tel)||''}${x.email?' · '+esc(x.email):''}</div></td>
+    <td><span class="badge b-${x.estado}">${LABELS[x.estado]}</span></td>
+    <td class="hide-sm">${esc(x.servicio)||'<span class="sub">—</span>'}</td>
+    <td>${money(x.valor,x.tipo)}</td>
+    <td class="hide-sm">${esc(x.paso)||'<span class="sub">—</span>'}</td>
+    <td class="hide-sm sub">${esc(x.ultima)||'—'}</td></tr>`).join('');
+  document.getElementById('foot').textContent=`${data.length} cliente(s) · ${mode==='cloud'?'☁️ nube (Supabase)':'💾 local (este navegador)'} · MA Tax & Accounting Services`;
+}
+
+window.openModal=function(id){
+  document.getElementById('overlay').classList.add('open');
+  const del=document.getElementById('delBtn');
+  document.getElementById('mHint').textContent = mode==='cloud'?'Guardado en la nube — visible para todo el equipo.':'Guardado local en este navegador. Conéctate (☁︎) para sincronizar.';
+  if(id){
+    const x=data.find(c=>String(c.id)===String(id));
+    document.getElementById('mTitle').textContent='Editar cliente';
+    f_id.value=x.id;f_nombre.value=x.nombre||'';f_tel.value=x.tel||'';f_email.value=x.email||'';
+    f_servicio.value=x.servicio||'';f_estado.value=x.estado;f_valor.value=x.valor||'';
+    f_tipo.value=x.tipo||'mensual';f_proxfecha.value=x.proxfecha||'';f_paso.value=x.paso||'';f_notas.value=x.notas||'';
+    del.style.display='inline-block';
+  }else{
+    document.getElementById('mTitle').textContent='Nuevo cliente';
+    ['f_id','f_nombre','f_tel','f_email','f_servicio','f_valor','f_proxfecha','f_paso','f_notas'].forEach(i=>document.getElementById(i).value='');
+    f_estado.value='lead';f_tipo.value='mensual';del.style.display='none';
+  }
+};
+window.closeModal=function(){document.getElementById('overlay').classList.remove('open');};
+
+window.saveClient=async function(){
+  const nombre=f_nombre.value.trim();
+  if(!nombre){alert('El nombre es requerido');return;}
+  const rec=payload();
+  const id=f_id.value;
+  const btn=document.getElementById('saveBtn'); btn.textContent='…';
+  try{
+    if(mode==='cloud'){
+      if(id){const {error}=await supabase.from('crm_leads').update(rec).eq('id',id); if(error)throw error;}
+      else{const {error}=await supabase.from('crm_leads').insert(rec); if(error)throw error;}
+      await cloudFetch();
+    }else{
+      rec.proxfecha=rec.proxfecha||'';
+      if(id){const i=data.findIndex(c=>String(c.id)===String(id));data[i]={...data[i],...rec};}
+      else{data.push({id:uid(),...rec});}
+      cacheLocal();
+    }
+    render();closeModal();
+  }catch(e){alert('Error al guardar: '+e.message);}
+  finally{btn.textContent='Guardar';}
+};
+window.delClient=async function(){
+  const id=f_id.value;if(!id)return;
+  if(!confirm('¿Eliminar este cliente?'))return;
+  if(mode==='cloud'){const {error}=await supabase.from('crm_leads').delete().eq('id',id); if(error){alert(error.message);return;} await cloudFetch();}
+  else{data=data.filter(c=>String(c.id)!==String(id));cacheLocal();}
+  render();closeModal();
+};
+
+window.exportJSON=function(){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='matax-crm-'+today()+'.json';a.click();
+};
+window.exportCSV=function(){
+  const cols=['nombre','tel','email','servicio','estado','valor','tipo','paso','proxfecha','ultima','notas'];
+  const csv=[cols.join(',')].concat(data.map(x=>cols.map(c=>'"'+String(x[c]??'').replace(/"/g,'""')+'"').join(','))).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='matax-crm-'+today()+'.csv';a.click();
+};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAuth();}});
+
+/* ---------- boot ---------- */
+render();
+if(supabase){
+  supabase.auth.onAuthStateChange((_e,s)=>onSession(s));
+  const {data:{session:s}}=await supabase.auth.getSession();
+  onSession(s);
+}
+</script>
+</body>
+</html>
