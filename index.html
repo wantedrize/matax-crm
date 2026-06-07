@@ -209,13 +209,11 @@
 </div>
 
 <script type="module">
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-
 const KEY='matax_crm_v1';
 const LABELS={lead:'Lead',activo:'Activo',cotizado:'Cotizado',cerrado:'Cerrado',perdido:'Perdido',pausa:'Pausa'};
 const CFG=window.MAYOR_CONFIG||{};
 const hasCloud = CFG.SUPABASE_URL && !CFG.SUPABASE_URL.includes('YOUR-PROJECT');
-const supabase = hasCloud ? createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+let supabase = null;
 
 let data = loadLocal();
 let mode = 'local';        // 'local' | 'cloud'
@@ -493,10 +491,14 @@ if(localStorage.getItem('matax_notif')==='1' && ('Notification' in window) && No
   document.getElementById('notifBtn').textContent='🔔 Avisos activos';
   fireNotif(false);
 }
-if(supabase){
-  supabase.auth.onAuthStateChange((_e,s)=>onSession(s));
-  const {data:{session:s}}=await supabase.auth.getSession();
-  onSession(s);
+if(hasCloud){
+  try{
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.45.4");
+    supabase = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+    supabase.auth.onAuthStateChange((_e,s)=>onSession(s));
+    const {data:{session:s}}=await supabase.auth.getSession();
+    onSession(s);
+  }catch(e){ console.warn('Nube no disponible — modo local:', e); }
 }
 </script>
 </body>
