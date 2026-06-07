@@ -41,6 +41,19 @@
   .d-na{color:var(--muted);font-size:12px}
   .va{font-size:11px;color:var(--muted)}
   .fire{margin-left:5px}
+  .alert{background:#fff1f0;border:1px solid #f3b6b1;color:#a4322a;border-radius:10px;padding:11px 14px;margin-bottom:14px;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .alert.show{display:flex}
+  .alert .ab{display:flex;gap:8px}
+  .alert button{background:var(--red);color:#fff}
+  .alert button.x{background:#f6d9d6;color:#a4322a;padding:9px 11px}
+  .thr{font-size:12.5px;color:var(--slate);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .thr input{width:52px;padding:8px;text-align:center}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:600;color:var(--slate);cursor:pointer}
+  .chip:hover{background:#f2f6fb}
+  .chip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .chip.cold.active{background:var(--red);border-color:var(--red)}
+  .chip .ct{opacity:.65;margin-left:4px;font-weight:700}
   .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
   .toolbar input[type=search]{flex:1;min-width:180px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff}
   select{padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--ink)}
@@ -115,18 +128,24 @@
     <button onclick="migrate()">Subir a la nube</button>
   </div>
 
+  <div class="alert" id="alertBox">
+    <span id="alertTxt"></span>
+    <div class="ab">
+      <button onclick="setFilter('cold')">Ver pendientes</button>
+      <button class="x" onclick="dismissAlert()">✕</button>
+    </div>
+  </div>
+
   <div class="stats" id="stats"></div>
 
   <div class="toolbar">
     <input type="search" id="q" placeholder="🔍 Buscar por nombre, teléfono, servicio…" oninput="render()">
-    <select id="filtro" onchange="render()">
-      <option value="">Todos los estados</option>
-      <option value="lead">Lead</option><option value="activo">Activo</option>
-      <option value="cotizado">Cotizado</option><option value="cerrado">Cerrado ✅</option>
-      <option value="perdido">Perdido ❌</option><option value="pausa">Pausa ⏸️</option>
-    </select>
+    <label class="thr">🔔 Alerta a los <input type="number" id="thr" min="1" max="90" value="7" oninput="setThreshold(this.value)"> días</label>
+    <button class="btn-ghost" style="background:#eef1f5;color:#43536b" id="notifBtn" onclick="enableNotif()">🔔 Activar avisos</button>
     <button class="btn-add" onclick="openModal()">+ Nuevo cliente</button>
   </div>
+
+  <div class="chips" id="chips"></div>
 
   <table>
     <thead><tr>
@@ -307,7 +326,9 @@ window.migrate=async()=>{
 
 /* ---------- ui helpers ---------- */
 const PROB={lead:.10,activo:.30,cotizado:.60};   // probabilidad de cierre por etapa
-const STALE=7, WARM=3;                            // umbrales de días sin contacto
+let STALE=7; const WARM=3;                        // umbrales de días sin contacto (STALE ajustable)
+let filter='';                                    // '' | cold | lead | activo | cotizado | cerrado | perdido | pausa
+let alertDismissed=false;
 const PROCESS=['lead','activo','cotizado'];
 function k$(v){return '$'+Math.round(v).toLocaleString();}
 function annual(x){const v=Number(x.valor||0);return x.tipo==='mensual'?v*12:v;}  // valor anualizado del trato
@@ -349,13 +370,43 @@ function stats(){
   document.getElementById('stats').innerHTML=cards.map(([cl,n,l,s2])=>
     `<div class="stat ${cl}"><div class="n">${n}</div><div class="l">${l}</div>${s2?`<div class="s2">${s2}</div>`:''}</div>`).join('');
 }
+const CHIPS=[['','Todos'],['cold','🔥 Por seguir'],['lead','Lead'],['activo','Activo'],['cotizado','Cotizado'],['cerrado','Cerrado'],['perdido','Perdido']];
+function chipCount(f){ if(f==='')return data.length; if(f==='cold')return data.filter(isCold).length; return data.filter(x=>x.estado===f).length; }
+function renderChips(){
+  document.getElementById('chips').innerHTML=CHIPS.map(([f,l])=>
+    `<span class="chip ${f==='cold'?'cold':''} ${filter===f?'active':''}" onclick="setFilter('${f}')">${l}<span class="ct">${chipCount(f)}</span></span>`).join('');
+}
+window.setFilter=function(f){ filter=f; alertDismissed=true; document.getElementById('alertBox').classList.remove('show'); render(); };
+window.setThreshold=function(v){ STALE=Math.min(90,Math.max(1,Number(v)||7)); alertDismissed=false; render(); };
+function updateAlert(){
+  const cold=data.filter(isCold);
+  const box=document.getElementById('alertBox');
+  if(cold.length && !alertDismissed && filter!=='cold'){
+    const val=cold.reduce((s,x)=>s+annual(x),0);
+    document.getElementById('alertTxt').innerHTML=`🔔 <b>${cold.length}</b> lead(s) llevan ≥ ${STALE} días sin contacto — <b>${k$(val)}/año</b> en riesgo. ¡Dales seguimiento!`;
+    box.classList.add('show');
+  } else box.classList.remove('show');
+}
+window.dismissAlert=function(){ alertDismissed=true; document.getElementById('alertBox').classList.remove('show'); };
+window.enableNotif=async function(){
+  if(!('Notification' in window)){alert('Este navegador no soporta avisos.');return;}
+  let p=Notification.permission;
+  if(p!=='granted') p=await Notification.requestPermission();
+  if(p==='granted'){ localStorage.setItem('matax_notif','1'); document.getElementById('notifBtn').textContent='🔔 Avisos activos'; fireNotif(true); }
+};
+function fireNotif(force){
+  if(localStorage.getItem('matax_notif')!=='1' || Notification.permission!=='granted')return;
+  const cold=data.filter(isCold);
+  if(cold.length){ try{ new Notification('MA Tax CRM — seguimiento pendiente',{body:`${cold.length} lead(s) llevan ≥ ${STALE} días sin contacto. ${k$(cold.reduce((s,x)=>s+annual(x),0))}/año en riesgo.`}); }catch(e){} }
+  else if(force) try{ new Notification('MA Tax CRM',{body:'¡Al día! Ningún lead frío. 🎉'}); }catch(e){}
+}
 window.render=function(){
   stats();
   const q=document.getElementById('q').value.toLowerCase();
-  const f=document.getElementById('filtro').value;
   let rows=data.filter(x=>{
     const hay=((x.nombre||'')+' '+(x.tel||'')+' '+(x.email||'')+' '+(x.servicio||'')+' '+(x.notas||'')).toLowerCase();
-    return (!f||x.estado===f) && (!q||hay.includes(q));
+    const okFilter = filter==='' ? true : (filter==='cold' ? isCold(x) : x.estado===filter);
+    return okFilter && (!q||hay.includes(q));
   });
   const grp=x=>inProcess(x)?0:(x.estado==='cerrado'?1:(x.estado==='pausa'?2:3));
   const staleRank=x=>{const d=daysSince(x.ultima);return d===null?100000:d;};
@@ -374,6 +425,7 @@ window.render=function(){
     <td>${money(x.valor,x.tipo)}</td>
     <td class="hide-sm">${esc(x.paso)||'<span class="sub">—</span>'}</td></tr>`).join('');
   document.getElementById('foot').textContent=`${data.length} cliente(s) · ${mode==='cloud'?'☁️ nube (Supabase)':'💾 local (este navegador)'} · MA Tax & Accounting Services`;
+  renderChips(); updateAlert();
 }
 
 window.openModal=function(id){
@@ -437,6 +489,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeA
 
 /* ---------- boot ---------- */
 render();
+if(localStorage.getItem('matax_notif')==='1' && ('Notification' in window) && Notification.permission==='granted'){
+  document.getElementById('notifBtn').textContent='🔔 Avisos activos';
+  fireNotif(false);
+}
 if(supabase){
   supabase.auth.onAuthStateChange((_e,s)=>onSession(s));
   const {data:{session:s}}=await supabase.auth.getSession();
