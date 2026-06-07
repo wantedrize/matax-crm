@@ -91,6 +91,17 @@
   .btn-cancel{background:#eef1f5;color:#43536b}
   .btn-del{background:#fff;color:var(--red);border:1px solid #f0c8c4}
   .btn-del:hover{background:#fbe7e5}
+  .btn-wa{display:block;background:#25d366;color:#fff;text-align:center;text-decoration:none;margin-top:12px;padding:11px 14px;border-radius:8px;font-weight:700;font-size:13px}
+  .btn-wa:hover{background:#1eb456}
+  .hist{border:1px solid var(--line);border-radius:8px;max-height:150px;overflow:auto;padding:2px;margin-top:5px}
+  .hist .he{padding:7px 9px;border-bottom:1px dashed var(--line);font-size:12.5px;line-height:1.4}
+  .hist .he:last-child{border-bottom:none}
+  .hist .hf{color:var(--brand2);font-weight:700;margin-right:7px}
+  .hist .empty2{color:var(--muted);font-size:12px;padding:10px;text-align:center}
+  .addc{display:flex;gap:6px;margin-top:7px}
+  .addc input{flex:1}
+  .addc button{background:var(--brand);color:#fff;white-space:nowrap}
+  a.wa{margin-left:6px;text-decoration:none;font-size:13px}
   /* auth */
   .auth{position:fixed;inset:0;background:#eef2f8;display:none;align-items:center;justify-content:center;padding:20px;z-index:80}
   .auth.open{display:flex}
@@ -165,7 +176,7 @@
     <input type="hidden" id="f_id">
     <div class="grid">
       <div class="field"><label>Nombre *</label><input id="f_nombre" placeholder="Nombre o negocio"></div>
-      <div class="field"><label>Teléfono</label><input id="f_tel" placeholder="787-000-0000"></div>
+      <div class="field"><label>Teléfono</label><input id="f_tel" placeholder="787-000-0000" oninput="updateWaBtn()"></div>
       <div class="field"><label>Email</label><input id="f_email" placeholder="correo@ejemplo.com"></div>
       <div class="field"><label>Servicio de interés</label><input id="f_servicio" placeholder="Iguala mensual, planilla, app…"></div>
       <div class="field"><label>Estado</label>
@@ -179,9 +190,25 @@
       <div class="field"><label>Tipo de valor</label>
         <select id="f_tipo"><option value="mensual">Mensual (MRR)</option><option value="unico">Único</option></select>
       </div>
+      <div class="field"><label>Origen del lead</label>
+        <select id="f_origen">
+          <option value="">—</option><option>WhatsApp</option><option>Referido</option>
+          <option>Facebook</option><option>Instagram</option><option>Google</option><option>Web</option><option>Llamada</option><option>Otro</option>
+        </select>
+      </div>
       <div class="field"><label>Fecha próx. seguimiento</label><input id="f_proxfecha" type="date"></div>
       <div class="field full"><label>Próximo paso</label><input id="f_paso" placeholder="Llamada de clasificación, enviar propuesta…"></div>
       <div class="field full"><label>Notas</label><textarea id="f_notas" placeholder="Contexto, qué necesita, objeciones, el 'click' que cerró…"></textarea></div>
+      <div class="field full"><label>¿Por qué se perdió? <span style="font-weight:400;color:var(--muted)">(si aplica)</span></label><input id="f_motivo" placeholder="Precio, tiempo, eligió otro CPA, no contestó…"></div>
+    </div>
+    <a id="waBtn" class="btn-wa" href="#" target="_blank" rel="noopener" style="display:none">💬 Escribir por WhatsApp</a>
+    <div style="margin-top:14px">
+      <label style="font-size:12px;font-weight:600;color:var(--slate)">Historial de contactos</label>
+      <div class="hist" id="histList"></div>
+      <div class="addc">
+        <input id="f_histnota" placeholder="Anota qué hablaron hoy… (resetea los días)" onkeydown="if(event.key==='Enter'){event.preventDefault();registrarContacto();}">
+        <button type="button" onclick="registrarContacto()">+ Registrar</button>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-del" id="delBtn" onclick="delClient()" style="display:none">Eliminar</button>
@@ -227,27 +254,48 @@ function uid(){return 'c'+Math.random().toString(36).slice(2,9);}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function seed(){
   return [
-    {id:uid(),nombre:'Lead WhatsApp (561)',tel:'+1 561-639-3979',email:'',servicio:'Nómina / clasificación contratistas',estado:'activo',valor:450,tipo:'mensual',paso:'Llamada de clasificación esta semana',proxfecha:'',notas:'Negocio mudándose a PR. Le descuentan 10% y debe pagar comisiones a vendedores. No ha pagado a nadie aún.',ultima:'2026-06-07'},
-    {id:uid(),nombre:'Cipreni Consulting',tel:'',email:'',servicio:'Iguala contable mensual',estado:'cotizado',valor:600,tipo:'mensual',paso:'Dar seguimiento a la propuesta',proxfecha:'',notas:'Propuesta enviada, aún sin contestar.',ultima:'2026-05-26'},
-    {id:uid(),nombre:'Panadería El Encanto',tel:'',email:'',servicio:'Iguala contable + IVU',estado:'cotizado',valor:500,tipo:'mensual',paso:'Cerrar propuesta (en borrador)',proxfecha:'',notas:'Propuesta en borrador — aún no cierra.',ultima:'2026-06-05'},
-    {id:uid(),nombre:'Lead (939)',tel:'939-231-4678',email:'',servicio:'',estado:'lead',valor:0,tipo:'mensual',paso:'Calificar caso',proxfecha:'',notas:'',ultima:''}
+    {id:uid(),nombre:'Lead WhatsApp (561)',tel:'+1 561-639-3979',email:'',servicio:'Nómina / clasificación contratistas',estado:'activo',valor:450,tipo:'mensual',paso:'Llamada de clasificación esta semana',proxfecha:'',notas:'Negocio mudándose a PR. Le descuentan 10% y debe pagar comisiones a vendedores. No ha pagado a nadie aún.',ultima:'2026-06-07',origen:'WhatsApp',historial:[{f:'2026-06-07',t:'Primer contacto por WhatsApp. Pregunta cómo pagar a sus vendedores y el 10%.'}]},
+    {id:uid(),nombre:'Cipreni Consulting',tel:'',email:'',servicio:'Iguala contable mensual',estado:'cotizado',valor:600,tipo:'mensual',paso:'Dar seguimiento a la propuesta',proxfecha:'',notas:'Propuesta enviada, aún sin contestar.',ultima:'2026-05-26',origen:'Referido',historial:[{f:'2026-05-26',t:'Envié propuesta de iguala mensual. Quedó en revisar.'}]},
+    {id:uid(),nombre:'Panadería El Encanto',tel:'',email:'',servicio:'Iguala contable + IVU',estado:'cotizado',valor:500,tipo:'mensual',paso:'Cerrar propuesta (en borrador)',proxfecha:'',notas:'Propuesta en borrador — aún no cierra.',ultima:'2026-06-05',origen:'Referido',historial:[]},
+    {id:uid(),nombre:'Lead (939)',tel:'939-231-4678',email:'',servicio:'',estado:'lead',valor:0,tipo:'mensual',paso:'Calificar caso',proxfecha:'',notas:'',ultima:'',origen:'WhatsApp',historial:[]}
   ];
 }
 
 /* ---------- cloud ---------- */
-const COLS=['nombre','tel','email','servicio','estado','valor','tipo','paso','proxfecha','notas','ultima'];
+let editHistorial=[];     // copia de trabajo del historial mientras la ficha está abierta
+let currentUltima='';     // última fecha de contacto del registro abierto
+function waLink(tel){ const d=(tel||'').replace(/\D/g,''); if(!d)return null; const n=d.length===10?'1'+d:d; return 'https://wa.me/'+n; }
 function payload(){
-  const o={};
-  COLS.forEach(c=>{ let v=document.getElementById('f_'+c)?.value; o[c]=v; });
-  o.valor=Number(document.getElementById('f_valor').value)||0;
-  o.proxfecha=document.getElementById('f_proxfecha').value||null;
-  o.ultima=today();
-  return o;
+  const hf=editHistorial.map(h=>h.f).filter(Boolean).sort();
+  return {
+    nombre:f_nombre.value.trim(), tel:f_tel.value.trim(), email:f_email.value.trim(),
+    servicio:f_servicio.value.trim(), estado:f_estado.value, valor:Number(f_valor.value)||0,
+    tipo:f_tipo.value, paso:f_paso.value.trim(), proxfecha:f_proxfecha.value||null,
+    notas:f_notas.value.trim(), origen:f_origen.value||'', motivo:f_motivo.value.trim(),
+    historial:editHistorial,
+    ultima: (hf.length? hf[hf.length-1] : (currentUltima||null))   // últ. contacto = fecha más reciente del historial
+  };
 }
+function renderHist(){
+  const el=document.getElementById('histList');
+  if(!editHistorial.length){ el.innerHTML='<div class="empty2">Sin contactos registrados todavía.</div>'; return; }
+  el.innerHTML=[...editHistorial].reverse().map(h=>`<div class="he"><span class="hf">${esc(h.f)}</span>${esc(h.t)}</div>`).join('');
+}
+window.registrarContacto=function(){
+  const t=document.getElementById('f_histnota').value.trim(); if(!t)return;
+  editHistorial.push({f:today(),t});
+  document.getElementById('f_histnota').value='';
+  renderHist();
+};
+window.updateWaBtn=function(){
+  const link=waLink(document.getElementById('f_tel').value);
+  const b=document.getElementById('waBtn');
+  if(link){ b.href=link; b.style.display='block'; } else b.style.display='none';
+};
 async function cloudFetch(){
   const {data:rows,error}=await supabase.from('crm_leads').select('*').order('updated_at',{ascending:false});
   if(error){ flashAuth(error.message,'err'); return false; }
-  data=rows.map(r=>({...r, proxfecha:r.proxfecha||'', ultima:r.ultima||''}));
+  data=rows.map(r=>({...r, proxfecha:r.proxfecha||'', ultima:r.ultima||'', historial:Array.isArray(r.historial)?r.historial:[]}));
   cacheLocal(); return true;
 }
 
@@ -416,7 +464,7 @@ window.render=function(){
   const tb=document.getElementById('rows');
   if(!rows.length){tb.innerHTML='<tr><td colspan="6" class="empty">Sin clientes. Dale a “+ Nuevo cliente”.</td></tr>';}
   else tb.innerHTML=rows.map(x=>`<tr class="row" onclick="openModal('${x.id}')">
-    <td><div class="name">${esc(x.nombre)||'—'}${isCold(x)?'<span class="fire">🔥</span>':''}</div><div class="sub">${esc(x.tel)||''}${x.email?' · '+esc(x.email):''}</div></td>
+    <td><div class="name">${esc(x.nombre)||'—'}${isCold(x)?'<span class="fire">🔥</span>':''}</div><div class="sub">${esc(x.tel)||''}${x.tel?` <a class="wa" href="${waLink(x.tel)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Escribir por WhatsApp">💬</a>`:''}${x.origen?' · '+esc(x.origen):''}</div></td>
     <td><span class="badge b-${x.estado}">${LABELS[x.estado]}</span></td>
     <td>${diasPill(x)}</td>
     <td class="hide-sm">${esc(x.servicio)||'<span class="sub">—</span>'}</td>
@@ -430,18 +478,24 @@ window.openModal=function(id){
   document.getElementById('overlay').classList.add('open');
   const del=document.getElementById('delBtn');
   document.getElementById('mHint').textContent = mode==='cloud'?'Guardado en la nube — visible para todo el equipo.':'Guardado local en este navegador. Conéctate (☁︎) para sincronizar.';
+  document.getElementById('f_histnota').value='';
   if(id){
     const x=data.find(c=>String(c.id)===String(id));
     document.getElementById('mTitle').textContent='Editar cliente';
     f_id.value=x.id;f_nombre.value=x.nombre||'';f_tel.value=x.tel||'';f_email.value=x.email||'';
     f_servicio.value=x.servicio||'';f_estado.value=x.estado;f_valor.value=x.valor||'';
     f_tipo.value=x.tipo||'mensual';f_proxfecha.value=x.proxfecha||'';f_paso.value=x.paso||'';f_notas.value=x.notas||'';
+    f_origen.value=x.origen||'';f_motivo.value=x.motivo||'';
+    editHistorial=Array.isArray(x.historial)?x.historial.map(h=>({...h})):[];
+    currentUltima=x.ultima||'';
     del.style.display='inline-block';
   }else{
     document.getElementById('mTitle').textContent='Nuevo cliente';
-    ['f_id','f_nombre','f_tel','f_email','f_servicio','f_valor','f_proxfecha','f_paso','f_notas'].forEach(i=>document.getElementById(i).value='');
-    f_estado.value='lead';f_tipo.value='mensual';del.style.display='none';
+    ['f_id','f_nombre','f_tel','f_email','f_servicio','f_valor','f_proxfecha','f_paso','f_notas','f_motivo'].forEach(i=>document.getElementById(i).value='');
+    f_estado.value='lead';f_tipo.value='mensual';f_origen.value='';
+    editHistorial=[];currentUltima='';del.style.display='none';
   }
+  renderHist(); updateWaBtn();
 };
 window.closeModal=function(){document.getElementById('overlay').classList.remove('open');};
 
@@ -457,7 +511,7 @@ window.saveClient=async function(){
       else{const {error}=await supabase.from('crm_leads').insert(rec); if(error)throw error;}
       await cloudFetch();
     }else{
-      rec.proxfecha=rec.proxfecha||'';
+      rec.proxfecha=rec.proxfecha||''; rec.ultima=rec.ultima||'';
       if(id){const i=data.findIndex(c=>String(c.id)===String(id));data[i]={...data[i],...rec};}
       else{data.push({id:uid(),...rec});}
       cacheLocal();
@@ -479,7 +533,7 @@ window.exportJSON=function(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='matax-crm-'+today()+'.json';a.click();
 };
 window.exportCSV=function(){
-  const cols=['nombre','tel','email','servicio','estado','valor','tipo','paso','proxfecha','ultima','notas'];
+  const cols=['nombre','tel','email','origen','servicio','estado','valor','tipo','paso','proxfecha','ultima','motivo','notas'];
   const csv=[cols.join(',')].concat(data.map(x=>cols.map(c=>'"'+String(x[c]??'').replace(/"/g,'""')+'"').join(','))).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='matax-crm-'+today()+'.csv';a.click();
 };

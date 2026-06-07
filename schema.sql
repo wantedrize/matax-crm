@@ -19,10 +19,18 @@ create table if not exists crm_leads (
   proxfecha   date,
   notas       text,
   ultima      date,
+  origen      text,
+  motivo      text,
+  historial   jsonb default '[]'::jsonb,
   created_at  timestamptz default now(),
   updated_at  timestamptz default now(),
   created_by  uuid references auth.users(id) on delete set null
 );
+
+-- columnas nuevas (idempotente, por si la tabla ya existía)
+alter table crm_leads add column if not exists origen    text;
+alter table crm_leads add column if not exists motivo    text;
+alter table crm_leads add column if not exists historial jsonb default '[]'::jsonb;
 
 create index if not exists idx_crm_leads_estado on crm_leads(estado);
 create index if not exists idx_crm_leads_updated on crm_leads(updated_at desc);
