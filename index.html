@@ -34,6 +34,13 @@
   .stat .n{font-size:24px;font-weight:800;letter-spacing:-.5px}
   .stat .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
   .stat.green .n{color:var(--green)} .stat.brand .n{color:var(--brand2)} .stat.violet .n{color:var(--violet)}
+  .stat.red .n{color:var(--red)} .stat.amber .n{color:#b9810f}
+  .stat .s2{font-size:11px;color:var(--muted);margin-top:1px}
+  .dpill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700}
+  .d-ok{background:#e3f6ea;color:#1f7a45} .d-warn{background:#fff3da;color:#b9810f} .d-bad{background:#fbe7e5;color:#c0392b}
+  .d-na{color:var(--muted);font-size:12px}
+  .va{font-size:11px;color:var(--muted)}
+  .fire{margin-left:5px}
   .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
   .toolbar input[type=search]{flex:1;min-width:180px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff}
   select{padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--ink)}
@@ -123,8 +130,8 @@
 
   <table>
     <thead><tr>
-      <th>Cliente</th><th>Estado</th><th class="hide-sm">Servicio</th>
-      <th>Valor</th><th class="hide-sm">Próximo paso</th><th class="hide-sm">Últ. contacto</th>
+      <th>Cliente</th><th>Estado</th><th>Días s/contacto</th><th class="hide-sm">Servicio</th>
+      <th>Valor anual</th><th class="hide-sm">Próximo paso</th>
     </tr></thead>
     <tbody id="rows"></tbody>
   </table>
@@ -203,7 +210,9 @@ function uid(){return 'c'+Math.random().toString(36).slice(2,9);}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function seed(){
   return [
-    {id:uid(),nombre:'Lead WhatsApp (561)',tel:'+1 561-639-3979',email:'',servicio:'Nómina / clasificación contratistas',estado:'activo',valor:0,tipo:'mensual',paso:'Llamada de clasificación esta semana',proxfecha:'',notas:'Negocio mudándose a PR. Le descuentan 10% y debe pagar comisiones a vendedores. No ha pagado a nadie aún.',ultima:'2026-06-07'},
+    {id:uid(),nombre:'Lead WhatsApp (561)',tel:'+1 561-639-3979',email:'',servicio:'Nómina / clasificación contratistas',estado:'activo',valor:450,tipo:'mensual',paso:'Llamada de clasificación esta semana',proxfecha:'',notas:'Negocio mudándose a PR. Le descuentan 10% y debe pagar comisiones a vendedores. No ha pagado a nadie aún.',ultima:'2026-06-07'},
+    {id:uid(),nombre:'Cipreni Consulting',tel:'',email:'',servicio:'Iguala contable mensual',estado:'cotizado',valor:600,tipo:'mensual',paso:'Dar seguimiento a la propuesta',proxfecha:'',notas:'Propuesta enviada, aún sin contestar.',ultima:'2026-05-26'},
+    {id:uid(),nombre:'Panadería El Encanto',tel:'',email:'',servicio:'Iguala contable + IVU',estado:'cerrado',valor:500,tipo:'mensual',paso:'',proxfecha:'',notas:'Cliente activo — iguala mensual.',ultima:'2026-06-05'},
     {id:uid(),nombre:'Lead (939)',tel:'939-231-4678',email:'',servicio:'',estado:'lead',valor:0,tipo:'mensual',paso:'Calificar caso',proxfecha:'',notas:'',ultima:''}
   ];
 }
@@ -297,16 +306,48 @@ window.migrate=async()=>{
 };
 
 /* ---------- ui helpers ---------- */
-function money(v,tipo){if(!v)return '<span class="sub">—</span>';return '<span class="money">$'+Number(v).toLocaleString()+(tipo==='mensual'?'/mes':'')+'</span>';}
+const PROB={lead:.10,activo:.30,cotizado:.60};   // probabilidad de cierre por etapa
+const STALE=7, WARM=3;                            // umbrales de días sin contacto
+const PROCESS=['lead','activo','cotizado'];
+function k$(v){return '$'+Math.round(v).toLocaleString();}
+function annual(x){const v=Number(x.valor||0);return x.tipo==='mensual'?v*12:v;}  // valor anualizado del trato
+function inProcess(x){return PROCESS.includes(x.estado);}
+function daysSince(d){ if(!d)return null; const t=new Date(d+'T00:00:00'); if(isNaN(t))return null;
+  return Math.floor((new Date(today()+'T00:00:00')-t)/86400000); }
+function isCold(x){ if(!inProcess(x))return false; const d=daysSince(x.ultima); return d===null||d>=STALE; }
+
+function money(v,tipo){if(!v)return '<span class="sub">—</span>';
+  const va=tipo==='mensual'?Number(v)*12:Number(v);
+  return '<span class="money">'+k$(v)+(tipo==='mensual'?'/mes':'')+'</span>'+(tipo==='mensual'?'<div class="va">'+k$(va)+'/año</div>':'');}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function diasPill(x){
+  if(x.estado==='cerrado')return '<span class="d-na">✓ cliente</span>';
+  if(x.estado==='perdido'||x.estado==='pausa')return '<span class="d-na">—</span>';
+  const d=daysSince(x.ultima);
+  if(d===null)return '<span class="dpill d-bad">sin contacto</span>';
+  const cls=d>=STALE?'d-bad':(d>=WARM?'d-warn':'d-ok');
+  return '<span class="dpill '+cls+'">'+d+(d===1?' día':' días')+'</span>';
+}
 
 function stats(){
-  const c=k=>data.filter(x=>x.estado===k).length;
-  const mrr=data.filter(x=>x.estado==='cerrado'&&x.tipo==='mensual').reduce((s,x)=>s+Number(x.valor||0),0);
-  const pipe=data.filter(x=>['lead','activo','cotizado'].includes(x.estado)).reduce((s,x)=>s+Number(x.valor||0),0);
-  const cards=[['',data.length,'Total'],['brand',c('lead')+c('activo')+c('cotizado'),'En proceso'],
-    ['green',c('cerrado'),'Cerrados'],['green','$'+mrr.toLocaleString(),'MRR (mensual)'],['violet','$'+pipe.toLocaleString(),'Pipeline']];
-  document.getElementById('stats').innerHTML=cards.map(([cl,n,l])=>`<div class="stat ${cl}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  const cerr=data.filter(x=>x.estado==='cerrado');
+  const mrr=cerr.filter(x=>x.tipo==='mensual').reduce((s,x)=>s+Number(x.valor||0),0);
+  const unico=cerr.filter(x=>x.tipo==='unico').reduce((s,x)=>s+Number(x.valor||0),0);
+  const arr=mrr*12;
+  const proc=data.filter(inProcess);
+  const pipeGross=proc.reduce((s,x)=>s+annual(x),0);
+  const pipeWeighted=proc.reduce((s,x)=>s+annual(x)*(PROB[x.estado]||0),0);
+  const cold=data.filter(isCold);
+  const coldVal=cold.reduce((s,x)=>s+annual(x),0);
+  const cards=[
+    ['green',k$(mrr)+'<span class="va" style="font-size:13px"> /mes</span>','MRR recurrente', cerr.length+' cerrados'+(unico?' · '+k$(unico)+' únicos':'')],
+    ['green',k$(arr),'ARR proyectado','MRR × 12'],
+    ['violet',k$(pipeWeighted),'Pipeline ponderado','valor esperado'],
+    ['brand',k$(pipeGross),'Pipeline total',proc.length+' en proceso'],
+    [cold.length?'red':'amber','🔥 '+cold.length,'Por seguir (frío ≥'+STALE+'d)', k$(coldVal)+' en riesgo'],
+  ];
+  document.getElementById('stats').innerHTML=cards.map(([cl,n,l,s2])=>
+    `<div class="stat ${cl}"><div class="n">${n}</div><div class="l">${l}</div>${s2?`<div class="s2">${s2}</div>`:''}</div>`).join('');
 }
 window.render=function(){
   stats();
@@ -316,17 +357,22 @@ window.render=function(){
     const hay=((x.nombre||'')+' '+(x.tel||'')+' '+(x.email||'')+' '+(x.servicio||'')+' '+(x.notas||'')).toLowerCase();
     return (!f||x.estado===f) && (!q||hay.includes(q));
   });
-  const order={activo:0,cotizado:1,lead:2,pausa:3,cerrado:4,perdido:5};
-  rows.sort((a,b)=>(order[a.estado]-order[b.estado])||((a.nombre||'').localeCompare(b.nombre||'')));
+  const grp=x=>inProcess(x)?0:(x.estado==='cerrado'?1:(x.estado==='pausa'?2:3));
+  const staleRank=x=>{const d=daysSince(x.ultima);return d===null?100000:d;};
+  rows.sort((a,b)=>{
+    const ga=grp(a),gb=grp(b); if(ga!==gb)return ga-gb;
+    if(ga===0) return staleRank(b)-staleRank(a);   // lead más abandonado arriba
+    return (a.nombre||'').localeCompare(b.nombre||'');
+  });
   const tb=document.getElementById('rows');
   if(!rows.length){tb.innerHTML='<tr><td colspan="6" class="empty">Sin clientes. Dale a “+ Nuevo cliente”.</td></tr>';}
   else tb.innerHTML=rows.map(x=>`<tr class="row" onclick="openModal('${x.id}')">
-    <td><div class="name">${esc(x.nombre)||'—'}</div><div class="sub">${esc(x.tel)||''}${x.email?' · '+esc(x.email):''}</div></td>
+    <td><div class="name">${esc(x.nombre)||'—'}${isCold(x)?'<span class="fire">🔥</span>':''}</div><div class="sub">${esc(x.tel)||''}${x.email?' · '+esc(x.email):''}</div></td>
     <td><span class="badge b-${x.estado}">${LABELS[x.estado]}</span></td>
+    <td>${diasPill(x)}</td>
     <td class="hide-sm">${esc(x.servicio)||'<span class="sub">—</span>'}</td>
     <td>${money(x.valor,x.tipo)}</td>
-    <td class="hide-sm">${esc(x.paso)||'<span class="sub">—</span>'}</td>
-    <td class="hide-sm sub">${esc(x.ultima)||'—'}</td></tr>`).join('');
+    <td class="hide-sm">${esc(x.paso)||'<span class="sub">—</span>'}</td></tr>`).join('');
   document.getElementById('foot').textContent=`${data.length} cliente(s) · ${mode==='cloud'?'☁️ nube (Supabase)':'💾 local (este navegador)'} · MA Tax & Accounting Services`;
 }
 
